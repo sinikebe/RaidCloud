@@ -78,7 +78,7 @@ def test_google_drive_sync_with_files(backend, tmp_path):
     subdir = tmp_path / "subdir"
     subdir.mkdir()
     (subdir / "file3.txt").write_text("content3")
-    
+
     # Should complete without errors
     backend.sync(tmp_path, "/remote/path")
 
