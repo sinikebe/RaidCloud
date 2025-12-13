@@ -1,0 +1,4 @@
+# RaidCloud requirements
+# Core dependencies will be added when implementing actual API integrations
+# google-api-python-client>=2.0.0
+# dropbox>=11.0.0
