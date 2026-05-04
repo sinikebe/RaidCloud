@@ -99,13 +99,13 @@ class StripingRAID:
                 pass
 
     def list(self, prefix: str = "") -> List[str]:
-        """Return logical file paths (without .stripe internals) matching *prefix*."""
+        # Walk folder tree from root (or prefix sub-folder)
         seen: set[str] = set()
-        suffix = _META_SUFFIX.replace("{i}", "")  # ".stripe/meta"
+        marker = ".stripe/meta"
         for provider in self.providers:
             for p in provider.list(prefix):
-                if p.endswith(suffix):
-                    logical = p[: -len(suffix)].rstrip("/")
+                if p.endswith(marker):
+                    logical = p[: -len(marker)].rstrip("/")
                     if logical:
                         seen.add(logical)
         return sorted(seen)

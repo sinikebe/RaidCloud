@@ -93,7 +93,7 @@ def _mount_dokan(backend: Any, mountpoint: str, foreground: bool = True) -> None
                     "LastWriteTime": pywintypes.Time(0),
                     "FileSize": 0,
                 }
-            if backend.exists(logical):
+            try:
                 data = backend.download(logical)
                 return {
                     "FileAttributes": win32con.FILE_ATTRIBUTE_NORMAL,
@@ -102,7 +102,8 @@ def _mount_dokan(backend: Any, mountpoint: str, foreground: bool = True) -> None
                     "LastWriteTime": pywintypes.Time(0),
                     "FileSize": len(data),
                 }
-            raise dokan.DokanError(dokan.ERROR_FILE_NOT_FOUND)
+            except FileNotFoundError:
+                raise dokan.DokanError(dokan.ERROR_FILE_NOT_FOUND)
 
         def FindFiles(self, path, fill_find_data, info):
             import pywintypes  # type: ignore[import-untyped]

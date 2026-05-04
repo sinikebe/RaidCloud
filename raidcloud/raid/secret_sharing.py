@@ -164,13 +164,13 @@ def _decrypt(key: bytes, nonce: bytes, ciphertext: bytes, tag: bytes) -> bytes:
 # Share encoding / decoding
 # ---------------------------------------------------------------------------
 # Binary layout per provider blob:
-#   4 bytes: magic "RCS\x01"
-#   2 bytes: share index (1-based, big-endian uint16)
-#   2 bytes: N (big-endian uint16)
-#   2 bytes: K (big-endian uint16)
-#   12 bytes: AES-GCM nonce
-#   8 bytes: length of ciphertext (big-endian uint64)
-#   N bytes: ciphertext
+#   4 bytes:  magic "RCS\x01"
+#   2 bytes:  share index (1-based, big-endian uint16)
+#   2 bytes:  N (big-endian uint16)
+#   2 bytes:  K (big-endian uint16)
+#   12 bytes: AES-GCM nonce (fixed length _NONCE_LEN = 12)
+#   8 bytes:  length of ciphertext (big-endian uint64)
+#   M bytes:  ciphertext (M = length field value)
 #   16 bytes: GCM tag
 #   32 bytes: DEK share bytes
 
