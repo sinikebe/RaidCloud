@@ -72,6 +72,13 @@ class StripingRAID:
         # Read meta from any provider
         meta = self._read_meta(path)
         n_chunks: int = meta["n_chunks"]
+        n_providers_meta: int = meta["n_providers"]
+        if n_providers_meta != len(self.providers):
+            raise RuntimeError(
+                f"Provider count mismatch: file was uploaded with "
+                f"{n_providers_meta} providers but {len(self.providers)} are "
+                f"configured. Chunk routing would be incorrect."
+            )
         n = len(self.providers)
 
         chunks: list[bytes] = []
@@ -86,6 +93,13 @@ class StripingRAID:
         """Delete all chunks and metadata for *path*."""
         meta = self._read_meta(path)
         n_chunks: int = meta["n_chunks"]
+        n_providers_meta: int = meta["n_providers"]
+        if n_providers_meta != len(self.providers):
+            raise RuntimeError(
+                f"Provider count mismatch: file was uploaded with "
+                f"{n_providers_meta} providers but {len(self.providers)} are "
+                f"configured. Chunk routing would be incorrect."
+            )
         n = len(self.providers)
 
         for i in range(n_chunks):
@@ -114,7 +128,7 @@ class StripingRAID:
         return sorted(seen)
 
     def exists(self, path: str) -> bool:
-        return self.providers[0].exists(_meta_path(path))
+        return any(p.exists(_meta_path(path)) for p in self.providers)
 
     # ------------------------------------------------------------------
     # Helpers

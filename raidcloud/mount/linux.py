@@ -177,7 +177,15 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             writable = bool(flags & (os.O_WRONLY | os.O_RDWR))
             fh = self._next_fh
             self._next_fh += 1
-            self._handles[fh] = {"path": path, "writable": writable, "buf": bytearray()}
+            buf: bytearray
+            if writable and not truncate:
+                try:
+                    buf = bytearray(self._backend.download(path))
+                except FileNotFoundError:
+                    buf = bytearray()
+            else:
+                buf = bytearray()
+            self._handles[fh] = {"path": path, "writable": writable, "dirty": truncate, "buf": buf}
             return pyfuse3.FileInfo(fh=fh)
 
         async def read(self, fh: int, off: int, size: int) -> bytes:
@@ -195,11 +203,12 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             if len(current) < end:
                 current.extend(b"\x00" * (end - len(current)))
             current[off:end] = buf
+            handle["dirty"] = True
             return len(buf)
 
         async def release(self, fh: int) -> None:
             handle = self._handles.pop(fh, None)
-            if handle and handle["writable"] and handle["buf"]:
+            if handle and handle["writable"] and handle.get("dirty"):
                 self._backend.upload(handle["path"], bytes(handle["buf"]))
 
         async def create(self, parent_inode: int, name: bytes, mode: int, flags: int, ctx=None):
@@ -210,7 +219,7 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             self._backend.upload(child_path, b"")
             fh = self._next_fh
             self._next_fh += 1
-            self._handles[fh] = {"path": child_path, "writable": True, "buf": bytearray()}
+            self._handles[fh] = {"path": child_path, "writable": True, "dirty": False, "buf": bytearray()}
             attr = await self.getattr(inode)
             return pyfuse3.FileInfo(fh=fh), attr
 

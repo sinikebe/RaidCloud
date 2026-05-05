@@ -65,13 +65,14 @@ class MirrorRAID:
             except Exception as exc:
                 logger.warning("Download from %s failed: %s", provider.name, exc)
                 last_exc = exc
-        raise last_exc
+        raise FileNotFoundError(f"No provider could serve {path!r}") from last_exc
 
     def delete(self, path: str) -> None:
-        """Delete *path* from all providers.
+        """Delete *path* from all providers (best-effort).
 
-        Logs failures but does not re-raise so that a partial deletion
-        doesn't leave the virtual filesystem in an inconsistent state.
+        Provider failures are logged but not re-raised.  A partial deletion
+        (some providers succeed, others fail) is possible; callers should
+        not assume atomicity.
         """
         found_on_any = False
         for provider in self.providers:
