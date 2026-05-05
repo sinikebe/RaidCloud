@@ -1,0 +1,73 @@
+name: Windows Build (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to build from"
+        required: true
+        default: "releases"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Windows binary
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y libfuse3-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,fuse]"
+          pip install pyinstaller
+
+      - name: Run tests
+        run: python -m pytest tests/
+
+      - name: Compute version label
+        id: version
+        run: |
+          BASE=$(python -c "import re; m=re.search(r'version = \"([^\"]+)\"', open('pyproject.toml').read()); print(m.group(1))")
+          BRANCH_SLUG="${{ inputs.branch }}"
+          BRANCH_SLUG="${BRANCH_SLUG//\//-}"
+          echo "label=${BASE}-windows-manual.${GITHUB_RUN_NUMBER}.${BRANCH_SLUG}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Wine
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update -q
+          sudo apt-get install -y wine wine64 winbind
+
+      - name: Setup Wine Python & deps
+        run: bash scripts/setup_wine.sh
+        env:
+          WINEDEBUG: "-all"
+
+      - name: Build Windows binary
+        run: python scripts/build.py --target windows
+        env:
+          WINEDEBUG: "-all"
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: raidcloud-windows-amd64-${{ steps.version.outputs.label }}
+          path: dist/windows/raidcloud.exe
+          if-no-files-found: error
