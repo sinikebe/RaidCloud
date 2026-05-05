@@ -30,9 +30,16 @@ export WINEARCH=win64
 export WINEPREFIX="$HOME/.wine"
 export WINEDEBUG="-all"
 
-if [[ ! -d "$WINEPREFIX" ]]; then
-    echo "Initialising Wine prefix..."
+echo "Initialising Wine prefix (this may take a moment)..."
+wineboot --init
+wineserver --wait
+
+# Verify the prefix is functional
+if ! wine cmd /c "echo OK" &>/dev/null; then
+    echo "Wine prefix appears broken — wiping and reinitialising..."
+    rm -rf "$WINEPREFIX"
     wineboot --init
+    wineserver --wait
 fi
 
 # ---------------------------------------------------------------------------
