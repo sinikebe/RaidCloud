@@ -8,6 +8,7 @@ Aggregate multiple cloud storage providers into a RAID-like virtual disk for Lin
 |-----------|-------------|
 | **mirror** (RAID-1) | Every file is replicated on all providers — high availability |
 | **stripe** (RAID-0) | Files are split in equal-size chunks across providers — parallel I/O |
+| **split** | File is divided into exactly N equal parts, one per provider — no single provider holds the full file |
 | **secret_sharing** | Files are encrypted with AES-256-GCM; the key is split via Shamir's Secret Sharing (K-of-N threshold) — **no single provider can read your data** |
 
 ### Supported cloud providers
@@ -49,7 +50,7 @@ raidcloud config init
 Edit `~/.raidcloud/config.yaml` and enable at least one provider:
 
 ```yaml
-raid_mode: mirror          # mirror | stripe | secret_sharing
+raid_mode: mirror          # mirror | stripe | split | secret_sharing
 mount_point: /mnt/raidcloud
 
 providers:

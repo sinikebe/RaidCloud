@@ -33,11 +33,13 @@ class StripingRAID:
         chunk_size: Maximum bytes per chunk (default 4 MiB).
     """
 
-    def __init__(self, providers: List[CloudProvider], chunk_size: int = 4 * 1024 * 1024) -> None:
+    def __init__(self, providers: List[CloudProvider], chunk_size: int = 4 * 1024 * 1024,
+                 split_by_provider: bool = False) -> None:
         if not providers:
             raise ValueError("StripingRAID requires at least one provider.")
         self.providers = providers
         self.chunk_size = chunk_size
+        self.split_by_provider = split_by_provider
 
     # ------------------------------------------------------------------
     # Public API
@@ -46,7 +48,8 @@ class StripingRAID:
     def upload(self, path: str, data: bytes) -> None:
         """Stripe *data* across providers and save the stripe metadata."""
         n = len(self.providers)
-        chunks = _split(data, self.chunk_size)
+        chunk_size = max(1, math.ceil(len(data) / n)) if self.split_by_provider else self.chunk_size
+        chunks = _split(data, chunk_size)
         n_chunks = len(chunks)
 
         # Write each chunk to its provider (round-robin)
@@ -56,7 +59,7 @@ class StripingRAID:
 
         # Write metadata to all providers for redundancy
         meta = json.dumps({
-            "chunk_size": self.chunk_size,
+            "chunk_size": chunk_size,
             "n_chunks": n_chunks,
             "total_size": len(data),
             "n_providers": n,

@@ -60,6 +60,9 @@ def build_raid_backend(cfg: dict, providers: List[CloudProvider]) -> Any:
     elif mode in ("stripe", "striping", "raid0"):
         from raidcloud.raid.striping import StripingRAID
         return StripingRAID(providers, chunk_size=chunk_size)
+    elif mode in ("split", "split_stripe"):
+        from raidcloud.raid.striping import StripingRAID
+        return StripingRAID(providers, split_by_provider=True)
     elif mode in ("secret_sharing", "secretsharing", "confidential"):
         from raidcloud.raid.secret_sharing import SecretSharingRAID
         k = int(cfg.get("secret_sharing", {}).get("threshold", 2))
@@ -67,5 +70,5 @@ def build_raid_backend(cfg: dict, providers: List[CloudProvider]) -> Any:
     else:
         raise ValueError(
             f"Unknown raid_mode: {mode!r}. "
-            "Valid values: mirror, stripe, secret_sharing"
+            "Valid values: mirror, stripe, split, secret_sharing"
         )
