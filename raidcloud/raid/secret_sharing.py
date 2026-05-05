@@ -23,13 +23,15 @@ Reconstruction
 
 On-disk layout per provider (path ``<logical_path>.shares/<share_index>``)::
 
-    [2 bytes: share index big-endian]
-    [2 bytes: N (total shares) big-endian]
-    [2 bytes: K (threshold) big-endian]
-    [32 bytes: AES-GCM nonce length as 1 byte + nonce]
-    [remaining: ciphertext + GCM tag (16 bytes at end)]
-
-Actually stored as a simple binary blob (see _encode_share / _decode_share).
+    4 bytes:  magic "RCS\x01"
+    2 bytes:  share index (1-based, big-endian uint16)
+    2 bytes:  N (total shares, big-endian uint16)
+    2 bytes:  K (threshold, big-endian uint16)
+    12 bytes: AES-GCM nonce (fixed _NONCE_LEN = 12)
+    8 bytes:  ciphertext length M (big-endian uint64)
+    M bytes:  ciphertext
+    16 bytes: GCM authentication tag
+    32 bytes: DEK share (_AES_KEY_LEN = 32)
 """
 
 from __future__ import annotations
@@ -186,6 +188,9 @@ def _encode_blob(index: int, n: int, k: int, nonce: bytes, ciphertext: bytes, ta
 
 
 def _decode_blob(blob: bytes) -> dict:
+    _MIN_FIXED = 4 + _HEADER_SIZE + _NONCE_LEN + 8 + 16 + _AES_KEY_LEN  # no ciphertext
+    if len(blob) < _MIN_FIXED:
+        raise ValueError(f"Share blob too short: {len(blob)} bytes (minimum {_MIN_FIXED}).")
     offset = 0
     if blob[:4] != _MAGIC:
         raise ValueError("Invalid share blob magic.")
@@ -193,14 +198,24 @@ def _decode_blob(blob: bytes) -> dict:
     index, n, k = struct.unpack_from(_HEADER_FMT, blob, offset)
     offset += _HEADER_SIZE
     nonce = blob[offset:offset + _NONCE_LEN]
+    if len(nonce) != _NONCE_LEN:
+        raise ValueError(f"Truncated nonce: expected {_NONCE_LEN} bytes, got {len(nonce)}.")
     offset += _NONCE_LEN
     ct_len = struct.unpack_from(">Q", blob, offset)[0]
     offset += 8
+    remaining = len(blob) - offset
+    if remaining < ct_len + 16 + _AES_KEY_LEN:
+        raise ValueError(
+            f"Blob declares ciphertext length {ct_len} but only "
+            f"{remaining} bytes remain (need {ct_len + 16 + _AES_KEY_LEN})."
+        )
     ciphertext = blob[offset:offset + ct_len]
     offset += ct_len
     tag = blob[offset:offset + 16]
     offset += 16
-    dek_share = blob[offset:]
+    dek_share = blob[offset:offset + _AES_KEY_LEN]
+    if len(dek_share) != _AES_KEY_LEN:
+        raise ValueError(f"Truncated DEK share: expected {_AES_KEY_LEN} bytes, got {len(dek_share)}.")
     return {"index": index, "n": n, "k": k, "nonce": nonce, "ciphertext": ciphertext, "tag": tag, "dek_share": dek_share}
 
 

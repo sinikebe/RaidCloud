@@ -128,7 +128,7 @@ class StripingRAID:
         return sorted(seen)
 
     def exists(self, path: str) -> bool:
-        return self.providers[0].exists(_meta_path(path))
+        return any(p.exists(_meta_path(path)) for p in self.providers)
 
     # ------------------------------------------------------------------
     # Helpers
