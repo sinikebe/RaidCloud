@@ -75,6 +75,7 @@ class GDriveProvider(CloudProvider):
                 )
                 creds = flow.run_local_server(port=0)
             self._token_file.parent.mkdir(parents=True, exist_ok=True)
+            self._token_file.touch(mode=0o600, exist_ok=True)
             self._token_file.write_text(creds.to_json())
 
         self._service = build("drive", "v3", credentials=creds)

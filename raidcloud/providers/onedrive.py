@@ -77,6 +77,7 @@ class OneDriveProvider(CloudProvider):
 
         self._token = token_response["access_token"]
         self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+        self._cache_path.touch(mode=0o600, exist_ok=True)
         self._cache_path.write_text(cache.serialize())
 
     def upload(self, path: str, data: bytes) -> None:
