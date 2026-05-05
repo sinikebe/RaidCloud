@@ -23,11 +23,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-fuse = ["pyfuse3>=3.3"]
+fuse = ["pyfuse3>=3.3", "trio>=0.25"]
 dev = [
     "pytest>=8.3",
     "pytest-cov>=5.0",
     "pytest-mock>=3.14",
+    "pyinstaller>=6.0",
 ]
 
 [project.scripts]
