@@ -175,7 +175,6 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
         async def open(self, inode: int, flags: int, ctx=None):
             path = self._inode_path(inode)
             writable = bool(flags & (os.O_WRONLY | os.O_RDWR))
-            truncate = bool(flags & os.O_TRUNC)
             fh = self._next_fh
             self._next_fh += 1
             buf: bytearray

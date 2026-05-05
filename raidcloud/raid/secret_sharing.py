@@ -115,7 +115,16 @@ def _shamir_reconstruct(shares: list[tuple[int, bytes]]) -> bytes:
     """
     if not shares:
         raise ValueError("Need at least one share.")
+
+    xs = [x for x, _ in shares]
+    if any(x < 1 for x in xs):
+        raise ValueError("Share x-coordinates must be positive integers (1-based).")
+    if len(xs) != len(set(xs)):
+        raise ValueError("Duplicate share x-coordinates detected.")
+
     length = len(shares[0][1])
+    if any(len(s) != length for _, s in shares):
+        raise ValueError("All shares must have equal length.")
     secret = bytearray()
 
     for byte_idx in range(length):
@@ -272,27 +281,32 @@ class SecretSharingRAID:
             provider.upload(_share_path(path, i + 1), blob)
 
     def download(self, path: str) -> bytes:
-        n = len(self.providers)
         k = self.threshold
 
-        # Collect at least K shares
+        # Probe every provider for any share index it holds.
+        # This preserves the "any K of N" guarantee regardless of provider order.
         collected: list[tuple[int, bytes]] = []
         meta: dict | None = None
-        errors: list[Exception] = []
+        seen_indices: set[int] = set()
 
-        for i, provider in enumerate(self.providers):
+        for provider in self.providers:
             if len(collected) >= k:
                 break
-            try:
-                blob = provider.download(_share_path(path, i + 1))
-                info = _decode_blob(blob)
-                collected.append((info["index"], info["dek_share"]))
-                if meta is None:
-                    meta = info
-            except FileNotFoundError as exc:
-                errors.append(exc)
-            except Exception as exc:
-                errors.append(exc)
+            # Try all possible share indices this provider might hold.
+            for idx in range(1, len(self.providers) + 1):
+                if idx in seen_indices:
+                    continue
+                try:
+                    blob = provider.download(_share_path(path, idx))
+                    info = _decode_blob(blob)
+                    share_idx = info["index"]
+                    if share_idx not in seen_indices:
+                        collected.append((share_idx, info["dek_share"]))
+                        seen_indices.add(share_idx)
+                        if meta is None:
+                            meta = info
+                except (FileNotFoundError, ValueError):
+                    pass
 
         if len(collected) < k:
             raise FileNotFoundError(
@@ -319,12 +333,14 @@ class SecretSharingRAID:
 
     def list(self, prefix: str = "") -> List[str]:
         seen: set[str] = set()
-        marker = ".shares/share_1"
+        # Match any share index, not just share_1, so listings survive provider 0 being down.
+        shares_marker = ".shares/share_"
         for provider in self.providers:
             try:
                 for p in provider.list(prefix):
-                    if p.endswith(marker):
-                        logical = p[: -len(marker)].rstrip("/.")
+                    idx = p.find(shares_marker)
+                    if idx != -1:
+                        logical = p[:idx].rstrip("/.")
                         if logical:
                             seen.add(logical)
             except Exception:

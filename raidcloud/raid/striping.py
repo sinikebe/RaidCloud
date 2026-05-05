@@ -37,6 +37,8 @@ class StripingRAID:
                  split_by_provider: bool = False) -> None:
         if not providers:
             raise ValueError("StripingRAID requires at least one provider.")
+        if chunk_size < 1:
+            raise ValueError("chunk_size must be >= 1.")
         self.providers = providers
         self.chunk_size = chunk_size
         self.split_by_provider = split_by_provider
@@ -48,8 +50,17 @@ class StripingRAID:
     def upload(self, path: str, data: bytes) -> None:
         """Stripe *data* across providers and save the stripe metadata."""
         n = len(self.providers)
-        chunk_size = max(1, math.ceil(len(data) / n)) if self.split_by_provider else self.chunk_size
-        chunks = _split(data, chunk_size)
+        if self.split_by_provider:
+            # Produce exactly N parts — one per provider — padding the last if needed.
+            base, rem = divmod(max(len(data), 1), n)
+            chunks = [
+                data[i * base + min(i, rem):(i + 1) * base + min(i + 1, rem)]
+                for i in range(n)
+            ]
+            chunk_size = len(chunks[0]) if chunks else 1
+        else:
+            chunk_size = self.chunk_size
+            chunks = _split(data, chunk_size)
         n_chunks = len(chunks)
 
         # Write each chunk to its provider (round-robin)
