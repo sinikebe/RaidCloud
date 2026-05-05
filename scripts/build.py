@@ -38,7 +38,6 @@ def run(cmd: list[str], env: dict | None = None, **kwargs) -> None:
 
 def build_linux() -> None:
     print("\n=== Building Linux binary ===")
-    pyinstaller = shutil.which("pyinstaller") or sys.executable.replace("python", "pyinstaller")
     run([
         sys.executable, "-m", "PyInstaller",
         "--distpath", str(DIST / "linux"),
