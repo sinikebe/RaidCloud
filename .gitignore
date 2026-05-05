@@ -31,6 +31,8 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+# Track our hand-crafted spec (override the *.spec rule above)
+!raidcloud.spec
 
 # Installer logs
 pip-log.txt
