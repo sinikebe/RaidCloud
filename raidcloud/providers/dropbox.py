@@ -12,10 +12,13 @@ Environment-variable overrides::
 
 from __future__ import annotations
 
-import io
-from typing import List
+import builtins
+from typing import TYPE_CHECKING
 
 from raidcloud.providers.base import CloudProvider
+
+if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    import dropbox
 
 
 class DropboxProvider(CloudProvider):
@@ -30,7 +33,7 @@ class DropboxProvider(CloudProvider):
         """
         self._token = access_token
         self._root = root.rstrip("/")
-        self._client: "dropbox.Dropbox | None" = None  # type: ignore[name-defined]
+        self._client: dropbox.Dropbox | None = None
 
     # ------------------------------------------------------------------
     # CloudProvider interface
@@ -81,11 +84,11 @@ class DropboxProvider(CloudProvider):
                 raise FileNotFoundError(f"Dropbox: {remote!r} not found") from exc
             raise
 
-    def list(self, prefix: str = "") -> List[str]:
+    def list(self, prefix: str = "") -> builtins.list[str]:
         import dropbox  # type: ignore[import-untyped]
 
         folder = self._full(prefix) if prefix else self._root
-        results: List[str] = []
+        results: list[str] = []
         try:
             res = self._client.files_list_folder(folder, recursive=True)  # type: ignore[union-attr]
         except dropbox.exceptions.ApiError:
@@ -121,7 +124,7 @@ class DropboxProvider(CloudProvider):
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_config(cls, cfg: dict) -> "DropboxProvider":
+    def from_config(cls, cfg: dict) -> DropboxProvider:
         token = cfg.get("access_token", "")
         if not token:
             raise ValueError("Dropbox provider requires 'access_token' in config.")

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,8 @@ version = "0.1.2"
 description = "Aggregate multiple cloud providers into a RAID-like virtual disk"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = ["cloud", "raid", "fuse", "storage", "backup"]
 dependencies = [
     "click>=8.1",
@@ -41,3 +42,17 @@ include = ["raidcloud*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 110
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes (undefined names, unused imports), I import order,
+# UP pyupgrade, B bugbear.  F821 (undefined name) is the rule that catches the
+# class of bug that shipped in the FUSE open() path.
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests import lazily inside test bodies for optional deps; that is intentional.
+"tests/*" = ["E402"]

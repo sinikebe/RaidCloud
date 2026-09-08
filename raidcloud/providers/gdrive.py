@@ -16,11 +16,10 @@ token in *token_file*.
 
 from __future__ import annotations
 
+import builtins
 import io
 import json
-import os
 from pathlib import Path
-from typing import List
 
 from raidcloud.providers.base import CloudProvider
 
@@ -49,9 +48,9 @@ class GDriveProvider(CloudProvider):
 
     def auth(self) -> None:
         try:
+            from google.auth.transport.requests import Request  # type: ignore[import-untyped]
             from google.oauth2.credentials import Credentials  # type: ignore[import-untyped]
             from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import-untyped]
-            from google.auth.transport.requests import Request  # type: ignore[import-untyped]
             from googleapiclient.discovery import build  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
@@ -114,7 +113,7 @@ class GDriveProvider(CloudProvider):
         file_id = self._resolve_path(path)
         self._service.files().delete(fileId=file_id).execute()
 
-    def list(self, prefix: str = "") -> List[str]:
+    def list(self, prefix: str = "") -> builtins.list[str]:
         # Walk folder tree from root (or prefix sub-folder)
         start_id = self._root_folder_id
         if prefix:
@@ -179,12 +178,12 @@ class GDriveProvider(CloudProvider):
             raise FileNotFoundError(f"GDrive: {path!r} not found")
         return fid
 
-    def _walk(self, folder_id: str, rel_base: str) -> List[str]:
+    def _walk(self, folder_id: str, rel_base: str) -> builtins.list[str]:
         q = f"'{folder_id}' in parents and trashed = false"
         res = self._service.files().list(
             q=q, fields="files(id,name,mimeType)"
         ).execute()
-        results: List[str] = []
+        results: list[str] = []
         for item in res.get("files", []):
             rel = f"{rel_base}/{item['name']}".lstrip("/")
             if item["mimeType"] == _MIME_FOLDER:
@@ -198,7 +197,7 @@ class GDriveProvider(CloudProvider):
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_config(cls, cfg: dict) -> "GDriveProvider":
+    def from_config(cls, cfg: dict) -> GDriveProvider:
         creds = cfg.get("credentials_file", "~/.raidcloud/gdrive_credentials.json")
         token = cfg.get("token_file", "~/.raidcloud/gdrive_token.json")
         folder_id = cfg.get("folder_id", "")

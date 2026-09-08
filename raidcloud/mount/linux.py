@@ -101,8 +101,8 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
                     data = self._backend.download(path)
                     entry.st_mode = stat.S_IFREG | 0o644
                     entry.st_size = len(data)
-                except FileNotFoundError:
-                    raise pyfuse3.FUSEError(errno.ENOENT)
+                except FileNotFoundError as exc:
+                    raise pyfuse3.FUSEError(errno.ENOENT) from exc
 
             ts = self._timestamps.get(inode, now_ns)
             entry.st_ino = inode
@@ -175,6 +175,7 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
         async def open(self, inode: int, flags: int, ctx=None):
             path = self._inode_path(inode)
             writable = bool(flags & (os.O_WRONLY | os.O_RDWR))
+            truncate = bool(flags & os.O_TRUNC)
             fh = self._next_fh
             self._next_fh += 1
             buf: bytearray
@@ -192,8 +193,8 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             path = self._handles[fh]["path"]
             try:
                 data = self._backend.download(path)
-            except FileNotFoundError:
-                raise pyfuse3.FUSEError(errno.ENOENT)
+            except FileNotFoundError as exc:
+                raise pyfuse3.FUSEError(errno.ENOENT) from exc
             return data[off:off + size]
 
         async def write(self, fh: int, off: int, buf: bytes) -> int:
@@ -228,8 +229,8 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             child_path = f"{parent_path}/{name.decode()}".lstrip("/")
             try:
                 self._backend.delete(child_path)
-            except FileNotFoundError:
-                raise pyfuse3.FUSEError(errno.ENOENT)
+            except FileNotFoundError as exc:
+                raise pyfuse3.FUSEError(errno.ENOENT) from exc
             inode = self._path_to_inode.pop(child_path, None)
             if inode:
                 self._inode_to_path.pop(inode, None)
@@ -259,8 +260,8 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
 
             try:
                 data = self._backend.download(old_path)
-            except FileNotFoundError:
-                raise pyfuse3.FUSEError(errno.ENOENT)
+            except FileNotFoundError as exc:
+                raise pyfuse3.FUSEError(errno.ENOENT) from exc
 
             self._backend.upload(new_path, data)
             self._backend.delete(old_path)

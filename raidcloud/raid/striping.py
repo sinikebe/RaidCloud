@@ -15,9 +15,9 @@ On-disk layout::
 
 from __future__ import annotations
 
+import builtins
 import json
 import math
-from typing import List
 
 from raidcloud.providers.base import CloudProvider
 
@@ -33,7 +33,7 @@ class StripingRAID:
         chunk_size: Maximum bytes per chunk (default 4 MiB).
     """
 
-    def __init__(self, providers: List[CloudProvider], chunk_size: int = 4 * 1024 * 1024,
+    def __init__(self, providers: builtins.list[CloudProvider], chunk_size: int = 4 * 1024 * 1024,
                  split_by_provider: bool = False) -> None:
         if not providers:
             raise ValueError("StripingRAID requires at least one provider.")
@@ -126,7 +126,7 @@ class StripingRAID:
             except FileNotFoundError:
                 pass
 
-    def list(self, prefix: str = "") -> List[str]:
+    def list(self, prefix: str = "") -> builtins.list[str]:
         # Walk folder tree from root (or prefix sub-folder)
         seen: set[str] = set()
         marker = ".stripe/meta"

@@ -4,15 +4,14 @@ import pytest
 
 from raidcloud.raid.secret_sharing import (
     SecretSharingRAID,
-    _shamir_split,
-    _shamir_reconstruct,
-    _encrypt,
+    _decode_blob,
     _decrypt,
     _encode_blob,
-    _decode_blob,
+    _encrypt,
+    _shamir_reconstruct,
+    _shamir_split,
 )
 from tests.helpers import MockProvider
-
 
 # ---------------------------------------------------------------------------
 # GF arithmetic / Shamir primitives
@@ -78,8 +77,9 @@ def test_encrypt_decrypt_roundtrip():
 
 
 def test_decrypt_fails_with_wrong_key():
-    from cryptography.exceptions import InvalidTag
     import os
+
+    from cryptography.exceptions import InvalidTag
     key = os.urandom(32)
     bad_key = os.urandom(32)
     nonce, ct, tag = _encrypt(key, b"hello")

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+import builtins
 
 from raidcloud.providers.base import CloudProvider
 
@@ -34,7 +34,7 @@ class MockProvider(CloudProvider):
             raise FileNotFoundError(f"MockProvider {self._name}: {path!r} not found")
         del self.store[path]
 
-    def list(self, prefix: str = "") -> List[str]:
+    def list(self, prefix: str = "") -> builtins.list[str]:
         return [p for p in self.store if p.startswith(prefix)]
 
     @property

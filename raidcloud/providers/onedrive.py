@@ -19,9 +19,9 @@ Environment-variable overrides::
 
 from __future__ import annotations
 
-import json
+import builtins
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import requests
 
@@ -94,7 +94,7 @@ class OneDriveProvider(CloudProvider):
         url = self._item_url(path)
         self._request("DELETE", url, expect_no_body=True)
 
-    def list(self, prefix: str = "") -> List[str]:
+    def list(self, prefix: str = "") -> builtins.list[str]:
         base = f"{self._root_path}/{prefix}".rstrip("/") if prefix else self._root_path
         return self._walk(base, "")
 
@@ -137,14 +137,14 @@ class OneDriveProvider(CloudProvider):
             resp.raise_for_status()
         return resp
 
-    def _walk(self, graph_path: str, rel_base: str) -> List[str]:
+    def _walk(self, graph_path: str, rel_base: str) -> builtins.list[str]:
         url = f"{_GRAPH_BASE}/me{graph_path}:/children"
         try:
             resp = self._request("GET", url)
         except FileNotFoundError:
             return []
         items = resp.json().get("value", [])
-        results: List[str] = []
+        results: list[str] = []
         for item in items:
             rel = f"{rel_base}/{item['name']}".lstrip("/")
             if "folder" in item:
@@ -170,7 +170,7 @@ class OneDriveProvider(CloudProvider):
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_config(cls, cfg: dict) -> "OneDriveProvider":
+    def from_config(cls, cfg: dict) -> OneDriveProvider:
         client_id = cfg.get("client_id", "")
         if not client_id:
             raise ValueError("OneDrive provider requires 'client_id' in config.")

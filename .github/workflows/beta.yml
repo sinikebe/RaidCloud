@@ -5,6 +5,14 @@ on:
     branches-ignore:
       - main
 
+# Least privilege: this workflow only reads the code and uploads artifacts.
+permissions:
+  contents: read
+
+concurrency:
+  group: beta-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build beta binary

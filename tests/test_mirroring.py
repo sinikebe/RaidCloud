@@ -71,7 +71,7 @@ def test_upload_raises_when_all_providers_fail():
     p1 = MockProvider("p1", fail_upload=True)
     p2 = MockProvider("p2", fail_upload=True)
     raid = _make_raid(p1, p2)
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError, match="upload deliberately failed"):
         raid.upload("f.txt", b"data")
 
 

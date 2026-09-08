@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Keep the pinned action versions in .github/workflows patched.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore"
+
+  # RaidCloud depends on several cloud SDKs; keep them current.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
