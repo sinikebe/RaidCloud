@@ -53,7 +53,7 @@ jobs:
         run: python scripts/build.py --target linux
 
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: raidcloud-linux-amd64-${{ steps.version.outputs.label }}
           path: dist/linux/raidcloud
