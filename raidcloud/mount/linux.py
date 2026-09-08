@@ -34,18 +34,8 @@ logger = logging.getLogger(__name__)
 _ROOT_INODE = 1
 
 
-def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
-    """Mount *raid_backend* at *mountpoint* using FUSE.
-
-    Args:
-        raid_backend: Any object with ``upload``, ``download``, ``delete``,
-                      ``list``, and ``exists`` methods (MirrorRAID, StripingRAID,
-                      SecretSharingRAID, or a plain CloudProvider).
-        mountpoint:   Path to an existing directory on the local filesystem.
-        foreground:   If ``True`` (default) block until the filesystem is
-                      unmounted.  Set to ``False`` to daemonise (not yet
-                      implemented).
-    """
+def _import_fuse():
+    """Import pyfuse3/trio, or raise a message that says how to install them."""
     try:
         import pyfuse3  # type: ignore[import-untyped]
         import trio  # type: ignore[import-untyped]
@@ -54,8 +44,24 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             "FUSE mount requires: pip install pyfuse3 trio\n"
             "and system package libfuse3-dev"
         ) from exc
+    return pyfuse3, trio
 
-    # Defined here so pyfuse3.Operations is available as a base class.
+
+_fs_class_cache: Any = None
+
+
+def _build_fs_class(pyfuse3: Any) -> Any:
+    """Build the pyfuse3 Operations subclass.
+
+    The class is created here rather than at module import time because
+    ``pyfuse3.Operations`` must exist to serve as its base class, and pyfuse3
+    is an optional dependency.  The result is cached so repeated mounts (and
+    tests) reuse one class object.
+    """
+    global _fs_class_cache
+    if _fs_class_cache is not None:
+        return _fs_class_cache
+
     class _RaidCloudFS(pyfuse3.Operations):  # type: ignore[misc]
         """pyfuse3 filesystem implementation backed by a RaidCloud RAID layer."""
 
@@ -68,6 +74,10 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             self._handles: dict[int, dict] = {}
             self._next_fh: int = 1
             self._timestamps: dict[int, int] = {}
+            # Directories are normally synthesised from object paths, so an
+            # empty one is invisible.  mkdir records them here until they hold
+            # something.
+            self._explicit_dirs: set[str] = set()
 
         def _get_inode(self, path: str) -> int:
             if path not in self._path_to_inode:
@@ -84,6 +94,8 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
 
         def _is_dir(self, path: str) -> bool:
             if not path:
+                return True
+            if path.rstrip("/") in self._explicit_dirs:
                 return True
             prefix = path.rstrip("/") + "/"
             return any(p.startswith(prefix) for p in self._backend.list(path))
@@ -162,6 +174,11 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
                         children[child_name] = is_dir
                     elif is_dir:
                         children[child_name] = True
+            for dir_path in self._explicit_dirs:
+                if dir_path.startswith(prefix):
+                    rest = dir_path[len(prefix):]
+                    if rest and "/" not in rest:
+                        children.setdefault(rest, True)
             entries = list(children.items())
             for idx, (child_name, _) in enumerate(entries):
                 if idx < start_id:
@@ -239,6 +256,9 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             parent_path = self._inode_path(parent_inode)
             child_path = f"{parent_path}/{name.decode()}".lstrip("/")
             inode = self._get_inode(child_path)
+            # Without this the directory has no objects under it, so getattr
+            # would fall through to a download and fail with ENOENT.
+            self._explicit_dirs.add(child_path.rstrip("/"))
             return await self.getattr(inode)
 
         async def rmdir(self, parent_inode: int, name: bytes, ctx=None) -> None:
@@ -246,6 +266,7 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
             child_path = f"{parent_path}/{name.decode()}".lstrip("/")
             if self._backend.list(child_path):
                 raise pyfuse3.FUSEError(errno.ENOTEMPTY)
+            self._explicit_dirs.discard(child_path.rstrip("/"))
             inode = self._path_to_inode.pop(child_path, None)
             if inode:
                 self._inode_to_path.pop(inode, None)
@@ -272,7 +293,36 @@ def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
                 self._inode_to_path[inode] = new_path
                 self._path_to_inode[new_path] = inode
 
-    fs = _RaidCloudFS(raid_backend)
+    _fs_class_cache = _RaidCloudFS
+    return _RaidCloudFS
+
+
+def create_filesystem(raid_backend: Any) -> Any:
+    """Return the FUSE filesystem object for *raid_backend* without mounting it.
+
+    Split out from :func:`mount` so the filesystem operations can be driven
+    directly — by tests, or by anything else that wants the behaviour without
+    a real mount point.
+    """
+    pyfuse3, _ = _import_fuse()
+    return _build_fs_class(pyfuse3)(raid_backend)
+
+
+def mount(raid_backend: Any, mountpoint: str, foreground: bool = True) -> None:
+    """Mount *raid_backend* at *mountpoint* using FUSE.
+
+    Args:
+        raid_backend: Any object with ``upload``, ``download``, ``delete``,
+                      ``list``, and ``exists`` methods (MirrorRAID, StripingRAID,
+                      SecretSharingRAID, or a plain CloudProvider).
+        mountpoint:   Path to an existing directory on the local filesystem.
+        foreground:   If ``True`` (default) block until the filesystem is
+                      unmounted.  Set to ``False`` to daemonise (not yet
+                      implemented).
+    """
+    pyfuse3, trio = _import_fuse()
+
+    fs = create_filesystem(raid_backend)
     fuse_options = set(pyfuse3.default_options)
     fuse_options.add("fsname=raidcloud")
     if not foreground:
