@@ -4,6 +4,9 @@ on:
   push:
     branches-ignore:
       - main
+      # Dependency bumps are validated by ci.yml on their pull request; a beta
+      # binary for each one is just wasted runner time.
+      - "dependabot/**"
 
 # Least privilege: this workflow only reads the code and uploads artifacts.
 permissions:
