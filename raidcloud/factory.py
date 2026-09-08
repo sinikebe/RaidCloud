@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import sys
-from typing import Any, List
+from typing import Any
 
 from raidcloud.providers.base import CloudProvider
 
 
-def build_providers(cfg: dict) -> List[CloudProvider]:
+def build_providers(cfg: dict) -> list[CloudProvider]:
     """Instantiate and authenticate all enabled providers from *cfg*."""
     from raidcloud import config as _cfg_mod
 
-    providers: List[CloudProvider] = []
+    providers: list[CloudProvider] = []
     providers_cfg: dict = cfg.get("providers", {})
 
     for name, pcfg in providers_cfg.items():
@@ -49,7 +48,7 @@ def _build_provider(name: str, pcfg: dict) -> CloudProvider:
         raise ValueError(f"Unknown provider: {name!r}")
 
 
-def build_raid_backend(cfg: dict, providers: List[CloudProvider]) -> Any:
+def build_raid_backend(cfg: dict, providers: list[CloudProvider]) -> Any:
     """Build the appropriate RAID layer from *cfg*."""
     mode = cfg.get("raid_mode", "mirror").lower()
     chunk_size: int = int(cfg.get("chunk_size", 4 * 1024 * 1024))

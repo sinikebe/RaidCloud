@@ -7,8 +7,8 @@ one or more backends are unavailable.
 
 from __future__ import annotations
 
+import builtins
 import logging
-from typing import List
 
 from raidcloud.providers.base import CloudProvider
 
@@ -22,7 +22,7 @@ class MirrorRAID:
         providers: List of at least one :class:`~raidcloud.providers.base.CloudProvider`.
     """
 
-    def __init__(self, providers: List[CloudProvider]) -> None:
+    def __init__(self, providers: builtins.list[CloudProvider]) -> None:
         if not providers:
             raise ValueError("MirrorRAID requires at least one provider.")
         self.providers = providers
@@ -87,7 +87,7 @@ class MirrorRAID:
         if not found_on_any:
             raise FileNotFoundError(f"{path!r} not found on any provider")
 
-    def list(self, prefix: str = "") -> List[str]:
+    def list(self, prefix: str = "") -> builtins.list[str]:
         """Return the union of paths from all providers matching *prefix*."""
         seen: set[str] = set()
         for provider in self.providers:

@@ -102,8 +102,8 @@ def _mount_dokan(backend: Any, mountpoint: str, foreground: bool = True) -> None
                     "LastWriteTime": pywintypes.Time(0),
                     "FileSize": len(data),
                 }
-            except FileNotFoundError:
-                raise dokan.DokanError(dokan.ERROR_FILE_NOT_FOUND)
+            except FileNotFoundError as exc:
+                raise dokan.DokanError(dokan.ERROR_FILE_NOT_FOUND) from exc
 
         def FindFiles(self, path, fill_find_data, info):
             import pywintypes  # type: ignore[import-untyped]
@@ -131,8 +131,8 @@ def _mount_dokan(backend: Any, mountpoint: str, foreground: bool = True) -> None
             logical = _win_to_posix(path)
             try:
                 data = backend.download(logical)
-            except FileNotFoundError:
-                raise dokan.DokanError(dokan.ERROR_FILE_NOT_FOUND)
+            except FileNotFoundError as exc:
+                raise dokan.DokanError(dokan.ERROR_FILE_NOT_FOUND) from exc
             chunk = data[offset:offset + bufferLength]
             buffer[:len(chunk)] = chunk
             return len(chunk)
@@ -155,18 +155,28 @@ def _mount_dokan(backend: Any, mountpoint: str, foreground: bool = True) -> None
             logical = _win_to_posix(path)
             try:
                 backend.delete(logical)
-            except FileNotFoundError:
-                raise dokan.DokanError(dokan.ERROR_FILE_NOT_FOUND)
+            except FileNotFoundError as exc:
+                raise dokan.DokanError(dokan.ERROR_FILE_NOT_FOUND) from exc
 
         def CreateDirectory(self, path, info):
             # Directories are virtual; nothing to persist
             pass
 
         def GetDiskFreeSpace(self, info):
-            return {"FreeBytesAvailable": 10 * 1024**3, "TotalNumberOfBytes": 100 * 1024**3, "TotalNumberOfFreeBytes": 10 * 1024**3}
+            return {
+                "FreeBytesAvailable": 10 * 1024**3,
+                "TotalNumberOfBytes": 100 * 1024**3,
+                "TotalNumberOfFreeBytes": 10 * 1024**3,
+            }
 
         def GetVolumeInformation(self, info):
-            return {"VolumeName": "RaidCloud", "VolumeSerialNumber": 0x52434C44, "MaximumComponentLength": 255, "FileSystemFlags": 0, "FileSystemName": "RaidCloud"}
+            return {
+                "VolumeName": "RaidCloud",
+                "VolumeSerialNumber": 0x52434C44,
+                "MaximumComponentLength": 255,
+                "FileSystemFlags": 0,
+                "FileSystemName": "RaidCloud",
+            }
 
     def _win_to_posix(win_path: str) -> str:
         return win_path.replace("\\", "/").strip("/")

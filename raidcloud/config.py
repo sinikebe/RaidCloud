@@ -85,9 +85,20 @@ def load(path: str | Path | None = None) -> dict[str, Any]:
 
 
 def save(cfg: dict[str, Any], path: str | Path | None = None) -> None:
-    """Persist *cfg* to *path* (default: ``~/.raidcloud/config.yaml``)."""
+    """Persist *cfg* to *path* (default: ``~/.raidcloud/config.yaml``).
+
+    The config file holds provider credentials, so it is created with
+    owner-only permissions (0600), inside an owner-only directory (0700),
+    matching the token caches written by the gdrive/onedrive providers.
+    """
     config_path = Path(path) if path else DEFAULT_CONFIG_PATH
-    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Create (or tighten) the file before writing any secret into it.
+    config_path.touch(mode=0o600, exist_ok=True)
+    try:
+        os.chmod(config_path, 0o600)
+    except OSError:  # pragma: no cover - e.g. exotic/remote filesystems
+        pass
     with config_path.open("w", encoding="utf-8") as fh:
         yaml.dump(cfg, fh, default_flow_style=False, sort_keys=False)
 

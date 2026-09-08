@@ -2,6 +2,14 @@
 
 Aggregate multiple cloud storage providers into a RAID-like virtual disk for Linux and Windows.
 
+[![CI](https://github.com/sinikebe/RaidCloud/actions/workflows/ci.yml/badge.svg)](https://github.com/sinikebe/RaidCloud/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> **Status: pre-1.0, and the cryptography has not been independently audited.**
+> Treat RaidCloud as a hobby project. Keep another backup of anything you
+> cannot afford to lose, and read [SECURITY.md](SECURITY.md) before relying on
+> `secret_sharing` mode for confidentiality.
+
 ## Features
 
 | RAID mode | Description |
@@ -79,6 +87,10 @@ secret_sharing:
   threshold: 2   # only relevant for secret_sharing mode
 ```
 
+`config init` creates the file with mode `0600` inside a `0700` directory,
+since it holds your provider credentials. `raidcloud config show` redacts
+known secret keys.
+
 Credentials can also be provided via environment variables:
 
 ```
@@ -131,7 +143,7 @@ raidcloud/
 │   └── onedrive.py    OneDrive (Microsoft Graph) backend
 ├── raid/
 │   ├── mirroring.py   RAID-1: write to all, read from first available
-│   ├── striping.py    RAID-0: split chunks across providers
+│   ├── striping.py    RAID-0 stripe, and `split` (exactly one part per provider)
 │   └── secret_sharing.py  Shamir SSS + AES-256-GCM confidentiality
 └── mount/
     ├── linux.py       pyfuse3 FUSE filesystem
@@ -147,7 +159,16 @@ In `secret_sharing` mode:
 3. The DEK is split into N shares using **Shamir's Secret Sharing** over GF(2⁸).
 4. Share `i` is stored on provider `i` alongside the ciphertext.
 5. Any K of the N providers can reconstruct the DEK and decrypt the file.
-6. **Fewer than K providers reveal zero information** about the DEK or file contents.
+6. **Fewer than K providers cannot recover the DEK.** Shamir's scheme is
+   information-theoretically secure for the key: fewer than K shares are
+   consistent with every possible key.
+
+Note that every provider stores the **complete ciphertext** alongside its
+single DEK share. So each provider learns the exact size and logical path of
+every object, and confidentiality of the contents rests on AES-256-GCM rather
+than on the sharing scheme. `mirror`, `stripe` and `split` modes provide no
+confidentiality at all — they store plaintext. See [SECURITY.md](SECURITY.md)
+for the full threat model.
 
 ---
 
@@ -156,10 +177,23 @@ In `secret_sharing` mode:
 ```bash
 pip install -e ".[dev]"
 pytest
+ruff check raidcloud tests scripts
 ```
+
+The test suite needs no cloud credentials and no FUSE libraries.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the commit convention, the release
+process, and how to add a new cloud provider. Participation is governed by our
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+---
+
+## Security
+
+Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md).
 
 ---
 
 ## License
 
-MIT
+[MIT](LICENSE) © sinikebe

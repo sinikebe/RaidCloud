@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Least privilege: CI only needs to read the code.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # The test suite exercises config, RAID and crypto logic only — it does
+      # not import pyfuse3, so the FUSE extra (and libfuse3-dev) is not needed.
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: python -m pytest tests/ --cov=raidcloud --cov-report=term-missing
+
+  # The mount tests need pyfuse3, which needs libfuse3-dev. Kept as its own job
+  # so the main matrix stays fast and free of system dependencies.
+  fuse:
+    name: Mount layer (FUSE)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install libfuse3
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y libfuse3-dev
+
+      - name: Install package with the fuse extra
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,fuse]"
+
+      - name: Verify pyfuse3 is importable
+        run: python -c "import pyfuse3, trio"
+
+      - name: Run mount tests
+        run: python -m pytest tests/test_mount_linux.py tests/test_mount_windows.py -v
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Ruff check
+        run: ruff check raidcloud tests scripts

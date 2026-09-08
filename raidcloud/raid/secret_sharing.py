@@ -36,9 +36,9 @@ On-disk layout per provider (path ``<logical_path>.shares/<share_index>``)::
 
 from __future__ import annotations
 
+import builtins
 import os
 import struct
-from typing import List
 
 from raidcloud.providers.base import CloudProvider
 
@@ -190,7 +190,9 @@ _HEADER_FMT = ">HHH"   # index, N, K
 _HEADER_SIZE = struct.calcsize(_HEADER_FMT)
 
 
-def _encode_blob(index: int, n: int, k: int, nonce: bytes, ciphertext: bytes, tag: bytes, dek_share: bytes) -> bytes:
+def _encode_blob(
+    index: int, n: int, k: int, nonce: bytes, ciphertext: bytes, tag: bytes, dek_share: bytes
+) -> bytes:
     header = struct.pack(_HEADER_FMT, index, n, k)
     ct_len = struct.pack(">Q", len(ciphertext))
     return _MAGIC + header + nonce + ct_len + ciphertext + tag + dek_share
@@ -225,7 +227,15 @@ def _decode_blob(blob: bytes) -> dict:
     dek_share = blob[offset:offset + _AES_KEY_LEN]
     if len(dek_share) != _AES_KEY_LEN:
         raise ValueError(f"Truncated DEK share: expected {_AES_KEY_LEN} bytes, got {len(dek_share)}.")
-    return {"index": index, "n": n, "k": k, "nonce": nonce, "ciphertext": ciphertext, "tag": tag, "dek_share": dek_share}
+    return {
+        "index": index,
+        "n": n,
+        "k": k,
+        "nonce": nonce,
+        "ciphertext": ciphertext,
+        "tag": tag,
+        "dek_share": dek_share,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +254,7 @@ class SecretSharingRAID:
         threshold:  Minimum number of shares (K) required to reconstruct.
     """
 
-    def __init__(self, providers: List[CloudProvider], threshold: int = 2) -> None:
+    def __init__(self, providers: builtins.list[CloudProvider], threshold: int = 2) -> None:
         if len(providers) < 2:
             raise ValueError("SecretSharingRAID requires at least 2 providers.")
         if threshold < 2 or threshold > len(providers):
@@ -331,7 +341,7 @@ class SecretSharingRAID:
         if not found:
             raise FileNotFoundError(f"{path!r} not found on any provider")
 
-    def list(self, prefix: str = "") -> List[str]:
+    def list(self, prefix: str = "") -> builtins.list[str]:
         seen: set[str] = set()
         # Match any share index, not just share_1, so listings survive provider 0 being down.
         shares_marker = ".shares/share_"
@@ -348,13 +358,25 @@ class SecretSharingRAID:
         return sorted(seen)
 
     def exists(self, path: str) -> bool:
-        count = 0
-        for i, provider in enumerate(self.providers):
-            try:
-                provider.download(_share_path(path, i + 1))
-                count += 1
-                if count >= self.threshold:
-                    return True
-            except Exception:
-                pass
+        """Return ``True`` if at least *threshold* distinct shares are reachable.
+
+        Like :meth:`download`, this probes every share index on every provider
+        rather than assuming provider *i* holds share *i+1*, so the answer stays
+        correct when the configured provider order changes.  It uses
+        ``provider.exists`` so that a bare existence check does not pull whole
+        ciphertexts down.
+        """
+        n = len(self.providers)
+        seen_indices: set[int] = set()
+        for provider in self.providers:
+            for idx in range(1, n + 1):
+                if idx in seen_indices:
+                    continue
+                try:
+                    if provider.exists(_share_path(path, idx)):
+                        seen_indices.add(idx)
+                        if len(seen_indices) >= self.threshold:
+                            return True
+                except Exception:
+                    pass
         return False

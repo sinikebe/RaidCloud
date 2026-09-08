@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import builtins
 from abc import ABC, abstractmethod
-from typing import List
 
 
 class CloudProvider(ABC):
@@ -52,7 +52,7 @@ class CloudProvider(ABC):
         """
 
     @abstractmethod
-    def list(self, prefix: str = "") -> List[str]:
+    def list(self, prefix: str = "") -> builtins.list[str]:
         """Return all object paths that start with *prefix*.
 
         Paths are returned relative to the provider's root, using

@@ -21,7 +21,7 @@ Environment-variable overrides::
 
 from __future__ import annotations
 
-from typing import List
+import builtins
 
 from raidcloud.providers.base import CloudProvider
 
@@ -100,9 +100,22 @@ class S3Provider(CloudProvider):
             raise
         self._s3.delete_object(Bucket=self._bucket, Key=key)
 
-    def list(self, prefix: str = "") -> List[str]:
+    def exists(self, path: str) -> bool:
+        """Check existence with a HEAD request rather than fetching the object."""
+        import botocore.exceptions  # type: ignore[import-untyped]
+
+        key = self._key(path)
+        try:
+            self._s3.head_object(Bucket=self._bucket, Key=key)
+            return True
+        except botocore.exceptions.ClientError as exc:
+            if exc.response["Error"]["Code"] in ("404", "NoSuchKey", "NotFound"):
+                return False
+            raise
+
+    def list(self, prefix: str = "") -> builtins.list[str]:
         full_prefix = self._key(prefix)
-        results: List[str] = []
+        results: list[str] = []
         paginator = self._s3.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=self._bucket, Prefix=full_prefix):
             for obj in page.get("Contents", []):
@@ -127,7 +140,7 @@ class S3Provider(CloudProvider):
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_config(cls, cfg: dict) -> "S3Provider":
+    def from_config(cls, cfg: dict) -> S3Provider:
         bucket = cfg.get("bucket", "")
         if not bucket:
             raise ValueError("S3 provider requires 'bucket' in config.")

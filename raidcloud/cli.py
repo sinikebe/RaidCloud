@@ -27,12 +27,10 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 
 from raidcloud import __version__
-
 
 # ---------------------------------------------------------------------------
 # Root group
@@ -47,7 +45,7 @@ from raidcloud import __version__
     help="Path to config file (default: ~/.raidcloud/config.yaml).",
 )
 @click.pass_context
-def main(ctx: click.Context, config: Optional[str]) -> None:
+def main(ctx: click.Context, config: str | None) -> None:
     """RaidCloud — aggregate cloud providers into a RAID-like virtual disk."""
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
@@ -67,6 +65,7 @@ def config_group() -> None:
 def config_show(ctx: click.Context) -> None:
     """Print the current configuration (sensitive values redacted)."""
     import yaml
+
     from raidcloud import config as cfg_mod
 
     cfg = cfg_mod.load(ctx.obj.get("config_path"))
@@ -138,7 +137,8 @@ def config_init(ctx: click.Context, force: bool) -> None:
 @click.pass_context
 def mount_cmd(ctx: click.Context, mountpoint: str, foreground: bool) -> None:
     """Mount the RaidCloud RAID filesystem at MOUNTPOINT."""
-    from raidcloud import config as cfg_mod, factory
+    from raidcloud import config as cfg_mod
+    from raidcloud import factory
 
     cfg = cfg_mod.load(ctx.obj.get("config_path"))
     click.echo(
@@ -166,7 +166,8 @@ def mount_cmd(ctx: click.Context, mountpoint: str, foreground: bool) -> None:
 @click.pass_context
 def push(ctx: click.Context, local_path: str, remote_path: str) -> None:
     """Upload LOCAL_PATH to REMOTE_PATH on the RAID backend."""
-    from raidcloud import config as cfg_mod, factory
+    from raidcloud import config as cfg_mod
+    from raidcloud import factory
 
     cfg = cfg_mod.load(ctx.obj.get("config_path"))
     providers = factory.build_providers(cfg)
@@ -188,7 +189,8 @@ def push(ctx: click.Context, local_path: str, remote_path: str) -> None:
 @click.pass_context
 def pull(ctx: click.Context, remote_path: str, local_path: str) -> None:
     """Download REMOTE_PATH from the RAID backend to LOCAL_PATH."""
-    from raidcloud import config as cfg_mod, factory
+    from raidcloud import config as cfg_mod
+    from raidcloud import factory
 
     cfg = cfg_mod.load(ctx.obj.get("config_path"))
     providers = factory.build_providers(cfg)
@@ -213,7 +215,8 @@ def pull(ctx: click.Context, remote_path: str, local_path: str) -> None:
 @click.pass_context
 def ls(ctx: click.Context, prefix: str) -> None:
     """List files stored on the RAID backend."""
-    from raidcloud import config as cfg_mod, factory
+    from raidcloud import config as cfg_mod
+    from raidcloud import factory
 
     cfg = cfg_mod.load(ctx.obj.get("config_path"))
     providers = factory.build_providers(cfg)
@@ -236,7 +239,8 @@ def ls(ctx: click.Context, prefix: str) -> None:
 @click.pass_context
 def rm(ctx: click.Context, remote_path: str) -> None:
     """Delete REMOTE_PATH from all RAID providers."""
-    from raidcloud import config as cfg_mod, factory
+    from raidcloud import config as cfg_mod
+    from raidcloud import factory
 
     cfg = cfg_mod.load(ctx.obj.get("config_path"))
     providers = factory.build_providers(cfg)
@@ -254,7 +258,16 @@ def rm(ctx: click.Context, remote_path: str) -> None:
 # Helpers
 # ---------------------------------------------------------------------------
 
-_SECRET_KEYS = {"access_token", "secret_access_key", "client_secret", "password"}
+_SECRET_KEYS = {
+    "access_token",
+    "refresh_token",
+    "token",
+    "secret_access_key",
+    "session_token",
+    "client_secret",
+    "api_key",
+    "password",
+}
 
 
 def _redact(obj: object) -> None:
