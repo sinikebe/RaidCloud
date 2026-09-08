@@ -94,6 +94,14 @@ class OneDriveProvider(CloudProvider):
         url = self._item_url(path)
         self._request("DELETE", url, expect_no_body=True)
 
+    def exists(self, path: str) -> bool:
+        """Fetch item metadata (no ``/content``) rather than the file body."""
+        try:
+            self._request("GET", self._item_url(path))
+            return True
+        except FileNotFoundError:
+            return False
+
     def list(self, prefix: str = "") -> builtins.list[str]:
         base = f"{self._root_path}/{prefix}".rstrip("/") if prefix else self._root_path
         return self._walk(base, "")

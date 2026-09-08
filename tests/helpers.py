@@ -37,6 +37,10 @@ class MockProvider(CloudProvider):
     def list(self, prefix: str = "") -> builtins.list[str]:
         return [p for p in self.store if p.startswith(prefix)]
 
+    def exists(self, path: str) -> bool:
+        """Metadata-only existence check, as the real providers implement."""
+        return path in self.store
+
     @property
     def name(self) -> str:
         return self._name

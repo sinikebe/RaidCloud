@@ -3,6 +3,9 @@
 Thanks for your interest in RaidCloud! This document covers how to get set up
 and what we expect from a pull request.
 
+By participating you agree to abide by our
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Development setup
 
 ```bash
@@ -64,6 +67,13 @@ from commit history.
   `.github/workflows/beta.yml`.
 - Do not hand-edit the version in `pyproject.toml` or `raidcloud/__init__.py` —
   the release workflow owns it.
+
+> **Maintainers:** the release workflow pushes the version-bump commit and tag
+> straight to `main` using the default `GITHUB_TOKEN`. If you enable branch
+> protection on `main` that requires pull requests, that push will be rejected
+> and releases will stop. To keep both, either allow the
+> `github-actions[bot]` actor to bypass the rule, or give the workflow a
+> personal access token / deploy key with permission to push to `main`.
 
 ## Adding a cloud provider
 

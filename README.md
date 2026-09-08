@@ -183,7 +183,8 @@ ruff check raidcloud tests scripts
 The test suite needs no cloud credentials and no FUSE libraries.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the commit convention, the release
-process, and how to add a new cloud provider.
+process, and how to add a new cloud provider. Participation is governed by our
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 

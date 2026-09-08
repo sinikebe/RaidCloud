@@ -113,6 +113,14 @@ class GDriveProvider(CloudProvider):
         file_id = self._resolve_path(path)
         self._service.files().delete(fileId=file_id).execute()
 
+    def exists(self, path: str) -> bool:
+        """Resolve the path's file ID; no content is transferred."""
+        try:
+            self._resolve_path(path)
+            return True
+        except FileNotFoundError:
+            return False
+
     def list(self, prefix: str = "") -> builtins.list[str]:
         # Walk folder tree from root (or prefix sub-folder)
         start_id = self._root_folder_id

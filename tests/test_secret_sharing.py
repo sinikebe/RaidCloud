@@ -182,3 +182,49 @@ def test_requires_valid_threshold():
     providers = [MockProvider(f"p{i}") for i in range(3)]
     with pytest.raises(ValueError):
         SecretSharingRAID(providers, threshold=4)
+
+
+def test_exists_survives_provider_reordering():
+    """exists() must not assume provider i holds share i+1 — download() doesn't."""
+    raid, providers = _make_raid(n=3, k=2)
+    raid.upload("f.txt", b"payload")
+
+    # Same providers, different order (e.g. the user reordered config.yaml).
+    reordered = SecretSharingRAID(list(reversed(providers)), threshold=2)
+
+    assert reordered.exists("f.txt") is True
+    assert reordered.download("f.txt") == b"payload"
+
+
+def test_exists_false_below_threshold():
+    raid, providers = _make_raid(n=3, k=3)
+    raid.upload("f.txt", b"payload")
+    # Drop two providers' shares, leaving 1 of the 3 required.
+    providers[0].store.clear()
+    providers[1].store.clear()
+
+    assert raid.exists("f.txt") is False
+
+
+def test_exists_false_for_unknown_path():
+    raid, _ = _make_raid(n=3, k=2)
+    assert raid.exists("never-uploaded.txt") is False
+
+
+def test_exists_does_not_download_ciphertext():
+    """A bare existence check must not pull whole objects down."""
+    raid, providers = _make_raid(n=3, k=2)
+    raid.upload("big.bin", b"x" * 4096)
+
+    downloads: list[str] = []
+    for p in providers:
+        original = p.download
+
+        def spy(path, _orig=original):
+            downloads.append(path)
+            return _orig(path)
+
+        p.download = spy
+
+    assert raid.exists("big.bin") is True
+    assert downloads == [], f"exists() downloaded {downloads}"

@@ -84,6 +84,19 @@ class DropboxProvider(CloudProvider):
                 raise FileNotFoundError(f"Dropbox: {remote!r} not found") from exc
             raise
 
+    def exists(self, path: str) -> bool:
+        """Check existence via a metadata lookup rather than downloading."""
+        import dropbox  # type: ignore[import-untyped]
+
+        remote = self._full(path)
+        try:
+            self._client.files_get_metadata(remote)  # type: ignore[union-attr]
+            return True
+        except dropbox.exceptions.ApiError as exc:
+            if exc.error.is_path() and exc.error.get_path().is_not_found():
+                return False
+            raise
+
     def list(self, prefix: str = "") -> builtins.list[str]:
         import dropbox  # type: ignore[import-untyped]
 

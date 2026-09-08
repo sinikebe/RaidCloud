@@ -100,6 +100,19 @@ class S3Provider(CloudProvider):
             raise
         self._s3.delete_object(Bucket=self._bucket, Key=key)
 
+    def exists(self, path: str) -> bool:
+        """Check existence with a HEAD request rather than fetching the object."""
+        import botocore.exceptions  # type: ignore[import-untyped]
+
+        key = self._key(path)
+        try:
+            self._s3.head_object(Bucket=self._bucket, Key=key)
+            return True
+        except botocore.exceptions.ClientError as exc:
+            if exc.response["Error"]["Code"] in ("404", "NoSuchKey", "NotFound"):
+                return False
+            raise
+
     def list(self, prefix: str = "") -> builtins.list[str]:
         full_prefix = self._key(prefix)
         results: list[str] = []

@@ -358,13 +358,25 @@ class SecretSharingRAID:
         return sorted(seen)
 
     def exists(self, path: str) -> bool:
-        count = 0
-        for i, provider in enumerate(self.providers):
-            try:
-                provider.download(_share_path(path, i + 1))
-                count += 1
-                if count >= self.threshold:
-                    return True
-            except Exception:
-                pass
+        """Return ``True`` if at least *threshold* distinct shares are reachable.
+
+        Like :meth:`download`, this probes every share index on every provider
+        rather than assuming provider *i* holds share *i+1*, so the answer stays
+        correct when the configured provider order changes.  It uses
+        ``provider.exists`` so that a bare existence check does not pull whole
+        ciphertexts down.
+        """
+        n = len(self.providers)
+        seen_indices: set[int] = set()
+        for provider in self.providers:
+            for idx in range(1, n + 1):
+                if idx in seen_indices:
+                    continue
+                try:
+                    if provider.exists(_share_path(path, idx)):
+                        seen_indices.add(idx)
+                        if len(seen_indices) >= self.threshold:
+                            return True
+                except Exception:
+                    pass
         return False
